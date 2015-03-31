@@ -20,5 +20,3 @@ class BookAdmin(admin.ModelAdmin):
     list_aliases.allow_tags = True
 
 admin.site.register(Book, BookAdmin)
-
-
