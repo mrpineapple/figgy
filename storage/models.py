@@ -28,7 +28,7 @@ class Book(BaseModel):
         help_text='Very short description of this book.')
 
     def __unicode__(self):
-        return u"Book %s" % self.title
+        return u'Book {0}'.format(self.title)
 
     class Meta:
         ordering = ['title']
@@ -51,4 +51,4 @@ class Alias(BaseModel):
         help_text='The scheme of identifier')
 
     def __unicode__(self):
-        return '%s identifier for %s' % (self.scheme, self.book.title)
+        return u'{0} identifier for {1}'.format(self.scheme, self.book.title)
