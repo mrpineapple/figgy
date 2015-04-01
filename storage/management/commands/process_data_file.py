@@ -7,7 +7,7 @@ from lxml import etree
 
 from django.core.management.base import BaseCommand
 
-import storage.tools
+import storage.tools as tools
 
 
 class Command(BaseCommand):
@@ -15,14 +15,16 @@ class Command(BaseCommand):
     help = 'Process an xml file '
 
     def handle(self, *args, **options):
-        print ''
+        print
         print 'Processing {0} titles\n'.format(len(args))
         for filename in args:
             with open(filename, 'rb') as fh:
-                print 'Importing %s into database.' % filename
-                book_node = etree.parse(fh).getroot()
-                title, conflicts = storage.tools.process_book_element(book_node)
-                print '... "{0}" processed'.format(title)
-                if conflicts:
-                    print '!!! with {0} conflicts'.format(conflicts)
-        print ''
+                contents = fh.read()
+                sha1 = tools.hash_data(contents)
+
+                print 'Importing {0} into database.'.format(filename)
+                book_node = etree.fromstring(contents)
+                msg = tools.process_book_element(book_node, filename, sha1)
+                if msg:
+                    print '!!! {0}.'.format(msg)
+        print

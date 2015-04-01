@@ -67,3 +67,13 @@ class Conflict(BaseModel):
     def __unicode__(self):
         return u'"{0}": {1} / {2}'.format(
             self.book.title, self.conflicted_alias.scheme, self.conflicted_alias.value)
+
+
+class UpdateFile(BaseModel):
+    filename = models.CharField(
+        max_length=255, null=False, blank=False)
+    sha1 = models.CharField(
+        max_length=40, unique=True)
+
+    def __unicode__(self):
+        return self.filename
