@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from storage.models import Book, Alias
+from storage.models import Alias, Book, Conflict
 
 
 class InlineAliasAdmin(admin.StackedInline):
@@ -8,14 +8,21 @@ class InlineAliasAdmin(admin.StackedInline):
     extra = 0
 
 
+class InlineConflictAdmin(admin.StackedInline):
+    model = Conflict
+    extra = 0
+
+
 class BookAdmin(admin.ModelAdmin):
-    inlines = [InlineAliasAdmin]
+    inlines = [InlineConflictAdmin, InlineAliasAdmin]
 
     list_display = ['id', 'title', 'list_aliases']
 
     def list_aliases(self, obj):
         if obj:
-            return '<pre>%s</pre>' % '\n'.join([o.value for o in obj.aliases.all()])
+            return '<pre>%s</pre>' % '\n'.join(
+                ['%s: %s' % (o.scheme, o.value) for o in obj.aliases.all().order_by('scheme')]
+            )
 
     list_aliases.allow_tags = True
 

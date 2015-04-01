@@ -16,10 +16,6 @@ class BaseModel(models.Model):
 
 class Book(BaseModel):
     """Main storage for a Book object"""
-
-    id = models.CharField(
-        max_length=30, primary_key=True,
-        help_text='The primary identifier of this title, we get this value from publishers.')
     title = models.CharField(
         max_length=128, db_index=True, null=False, blank=False,
         help_text='The title of this book.')
@@ -28,7 +24,7 @@ class Book(BaseModel):
         help_text='Very short description of this book.')
 
     def __unicode__(self):
-        return u'Book {0}'.format(self.title)
+        return u'Book "{0}"'.format(self.title)
 
     class Meta:
         ordering = ['title']
@@ -44,11 +40,30 @@ class Alias(BaseModel):
     book = models.ForeignKey(
         Book, related_name='aliases')
     value = models.CharField(
-        max_length=255, db_index=True, unique=True,
+        max_length=255, db_index=True,
         help_text='The value of this identifier')
     scheme = models.CharField(
         max_length=40,
         help_text='The scheme of identifier')
 
     def __unicode__(self):
-        return u'{0} identifier for {1}'.format(self.scheme, self.book.title)
+        return u'"{0}": {1}/{2}'.format(self.book.title, self.scheme, self.value)
+
+
+class Conflict(BaseModel):
+    """Record of a Book for which another Book has the same alias.
+
+    When importing a Book from a publisher, we sometimes get incorrect data, if that
+    happens we generate a Conflict. We (will) have a tool that manages Conflicts
+    and allows someone to manage conflicts (merge or correct and mark distinct).
+    """
+    book = models.ForeignKey(
+        Book, related_name='books')
+    conflicted_alias = models.ForeignKey(
+        Alias, related_name='conflicted_aliases')
+    description = models.CharField(
+        max_length=40, null=False, blank=False)
+
+    def __unicode__(self):
+        return u'"{0}": {1} / {2}'.format(
+            self.book.title, self.conflicted_alias.scheme, self.conflicted_alias.value)

@@ -15,8 +15,14 @@ class Command(BaseCommand):
     help = 'Process an xml file '
 
     def handle(self, *args, **options):
+        print ''
+        print 'Processing {0} titles\n'.format(len(args))
         for filename in args:
             with open(filename, 'rb') as fh:
                 print 'Importing %s into database.' % filename
                 book_node = etree.parse(fh).getroot()
-                storage.tools.process_book_element(book_node)
+                title, conflicts = storage.tools.process_book_element(book_node)
+                print '... "{0}" processed'.format(title)
+                if conflicts:
+                    print '!!! with {0} conflicts'.format(conflicts)
+        print ''

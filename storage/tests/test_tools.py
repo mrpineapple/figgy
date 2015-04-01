@@ -32,9 +32,10 @@ class TestTools(TestCase):
         storage.tools.process_book_element(xml)
 
         self.assertEqual(Book.objects.count(), 1)
-        book = Book.objects.get(pk='12345')
+        book = Book.objects.get(title=u'El Título')
 
         self.assertEqual(book.title, u'El Título')
-        self.assertEqual(book.aliases.count(), 2)
+        self.assertEqual(book.aliases.count(), 3)
         self.assertEqual(Alias.objects.get(scheme='ISBN-10').value, '0158757819')
         self.assertEqual(Alias.objects.get(scheme='ISBN-13').value, '0000000000123')
+        self.assertEqual(Alias.objects.get(scheme='PUB_ID').value, '12345')
