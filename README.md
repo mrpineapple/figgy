@@ -1,18 +1,43 @@
-# figgy
+# Steve Smith's Code Submission
 
-figgy is sample code for interviews that relates to some of the code in our content management system.
+I thought this was an excellent code test. Non-trivial with a nod toward the messiness of real-world development. (Wait? What? People didn't adhere to a standard?) 
 
-As a prospective applicant you have two options for submitting a job application:
+I like that I was forced to think about some architectural things and had the freedom of a variety of solutions.
 
-The first is to develop your own solution and submit a pull request that we will review (You can also submit your solution as a patch if you don’t wish to have your solution public on Git).  Also, if you haven’t done so, submit a resume and cover letter through our corporate site.
+Perhaps my solution is quite unlike the solution Safari Books Online chose, but I think my solution tackles the issues I thought significant in an appropriate way.
 
-Alternatively, you may review any of the currently closed pull requests in this repo.  The closed requests are a mixture of past applications, and your challenge is to pick out one approach that you would submit in lieu your own solution.  Apply through the listing for a Python engineer on our corporate site and tell us what your chosen approach would be and why.
+## Key Concepts: Publisher Id & Conflicts
 
-Pull requests to make the setup process or documentation smoother are more than welcome.
+The philosophy behind my solution is this: Conflicts happen. Store the conflicted data and provide another tool to correct and/or merge conflicted data. (I have not provided the merging tool; I would be happy to provide more work if that's helpful.)
 
+Another key idea is that we should not trust the publisher to give us primary key data for our database. Let's just store the publisher's id as another Alias.
 
-# Python
- 
+## The Task
+
+Let's get to the task at hand, shall we? Let's assume you've been through the Very First Time setup.
+
+First, run the tests as originally documented:
+
+    $ tox
+
+Second, reset your database to get new model changes. I did not provide migrations, because it seems
+this task seems to be a proof-of-concept situation:
+
+    $ python manage.py reset_db <user@domain.com>
+
+This will delete the existing SQLite3 database and create the new database with the appropriate model changes. It will also create the super-user `user` with the provided email address and the password set to `user`.
+
+Obviously, this method would NEVER be used on production (and will stop if your engine isn't SQLite3). But I find it useful to have a prompt-less database reset mechanism.
+
+You should now be able to import the updates to the book data.
+
+    $ python manage.py process_data_file data/initial/*.xml
+    $ python manage.py process_data_file data/update/*.xml
+
+Feel free to re-run the update. We'll ignore any file that we've already processed. (We ignore duplicate updates based on the SHA1 hash of the file contents.)
+
+**The rest of this document is as it was.**
+
 ## Setup
 
 ### System dependencies
@@ -31,59 +56,32 @@ This setup assumes you have just cloned the git repo and are in the directory wi
     $ python manage.py createsuperuser                     # Establish an admin so you can log in
     $ python manage.py runserver                           # Prove this works by visiting http://localhost:8000
 
-Before you write any code, make sure you can run the tests and get them to pass 100%.
+## Running tests
 
-### Every time
+I've provided decent test coverage for my solution. The tests for this project are managed by `tox`, a Python package.
 
-When you come back to work after a day or more, you'll need to update your git checkout, and make
-sure you have any new dependencies or schema modifications:
-
-    $ . ve/bin/activate                           # Turn on the virtualenv (Every time!)
-    $ python setup.py develop --always-unzip      # Update the virtualenv with new Python dependencies
-    $ python manage.py syncdb --noinput           # Make sure the database schema is still filled out
-    $ python manage.py runserver                  # Prove this works by visiting http://localhost:8000
-
-tc.
-
-## Tests
-
-The tests for this project are managed by `tox`, a Python package.
 First, install `tox` via `easy_install` (or `pip`).
 
 Prior to running tox, be sure to create a `figgy/_local_tests.py` file by copying
-`figgy/_local_tests.py.example` to `figgy/_local_tests.py`.  Any modifications to the test settings
-should be performed in the developer's `_local_test.py`.
+`figgy/_local_tests.py.example` to `figgy/_local_tests.py`. 
+
+Any modifications to the test settings should be performed in the developer's `_local_test.py`.
 
 To run the tests:
 
     tox
 
-The first run will take a while as it builds a virtualenv and installs everything in it, subsequent
-ones will be much faster.  To rebuild the virtualenv later with updated dependencies:
+The first run will take a while as it builds a virtualenv and installs everything in it, subsequent ones will be much faster.  To rebuild the virtualenv later with updated dependencies:
 
     tox -r
 
-You normally shouldn't need to recreate the tox virtualenv, since it updates itself on each run,
-but it might be necessary in cases of version conflicts.
-
+You normally shouldn't need to recreate the tox virtualenv, since it updates itself on each run, but it might be necessary in cases of version conflicts.
 
 ## Importing test data
+
 Import the initial set of test data.
 
 ````
 $ python manage.py process_data_file data/initial/*.xml
-````
-
-## The Task
-
-You received an initial set of data with very loose specs and created a basic database to manage it with. The second round of updates blew away your assumptions about how the data was formed and you are now getting a better picture. Can you implement a solution to handle the xml updates?
-
-* Feel free to do any code modifications you feel that will accomplish your task. This includes adding additional modules, models, etc.
-* Please note that the update data potentially holds bad and conflicting values.
-
-
-
-````
-$ python manage.py process_data_file data/update/*.xml
 ````
 
