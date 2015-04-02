@@ -11,9 +11,11 @@ from storage.models import Alias, Book, Conflict, UpdateFile
 def process_book_element(book_element, filename, sha1):
     """Process a book element into the database.
 
-    We store the published id as another aliases. If we have any alias conflicts (including pub_id)
+    We store the publisher id as another alias. If we have any alias conflicts (including pub_id)
     we create a Conflict object so we can research and fix the issue. Possible resolutions can
-    include correcting the data or merging aliases to point to the canonical book.
+    include correcting the data or merging aliases/books to point to the canonical book.
+
+    We store a hash of each file we process. We exit early if we have seen this file before.
     """
 
     updated_already = UpdateFile.objects.filter(sha1=sha1)
@@ -23,7 +25,7 @@ def process_book_element(book_element, filename, sha1):
         created_str = update_file.created_time.strftime('%c')
         return '{0} processed on {1} contained same data'.format(prev_filename, created_str)
 
-    incoming = parse_book_element(book_element)
+    incoming = extract_book_data(book_element)
     found = Alias.objects.filter(value=incoming['publisher_id'])
     num_found = len(found)
 
@@ -60,13 +62,16 @@ def get_alias_conflicts(book, incoming_aliases):
         scheme = incoming_alias['scheme']
         value = incoming_alias['value']
         conflicts.append(Alias.objects.filter(scheme=scheme, value=value).exclude(book=book))
-    # Flatten list of lists; filtering results in list of zero or more aliases appended to conflicts
+    # Appending results of `filter` to list results in list of lists, flatten this out
     flattened_conflicts = [item for found_set in conflicts for item in found_set]
     return flattened_conflicts
 
 
-def parse_book_element(book_element):
-    """Parse the book data, return a dictionary of values"""
+def extract_book_data(book_element):
+    """Return a dict of the data extracted from provided element
+
+    Note that the 'aliases' key will return a dict of two keys: 'scheme' and 'value'
+    """
     publisher_id = book_element.get('id')
     title = book_element.findtext('title')    
     description = book_element.findtext('description')
@@ -83,7 +88,10 @@ def parse_book_element(book_element):
     
 
 def populate_book_attrs(book, incoming):
-    """Populate book object with values from incoming dict, including an alias for publisher id"""
+    """Populate book object with values from incoming dict, including an alias for publisher id
+
+    Note that we treat the incoming book id as an alias of scheme PUB_ID.
+    """
     book.title = incoming['title']
     book.description = incoming['description']
 
@@ -100,7 +108,8 @@ def hash_data(contents):
     Using git-compatible hash since we may have the data files stored in git. Could be handy.
     If we get out of sync with the git format reason it shouldn't kill us.
 
-    This is simple enough that it makes sense to implement here, rather than spawning a new process.
+    This is simple enough that it makes sense to implement here, rather than spawning a new process
+    to use the git binary.
     """
     data = contents
     len_data = len(data)

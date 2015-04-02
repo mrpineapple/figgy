@@ -31,10 +31,11 @@ class Book(BaseModel):
 
 
 class Alias(BaseModel):
-    """Alternate identifiers for a given book
+    """Alternate identifiers for a given book.
 
     For example, a book can be referred to with an ISBN-10 (older, deprecated scheme), ISBN-13
-    (newer scheme), or any number of other aliases.
+    (newer scheme), or any number of other aliases. In addition to the publisher-provided aliases
+    we create an alias 'PUB_ID' for the book id they provide.
     """
 
     book = models.ForeignKey(
@@ -70,6 +71,7 @@ class Conflict(BaseModel):
 
 
 class UpdateFile(BaseModel):
+    """Store a hash of each file we process so we can avoid re-processing identical data"""
     filename = models.CharField(
         max_length=255, null=False, blank=False)
     sha1 = models.CharField(

@@ -79,8 +79,9 @@ class TestSupportingTools(TestCase):
 
     def test_hash_file(self):
         """hash_file should return a git compatible SHA1"""
-        # To get expected sha1 value (be sure to use -e):
-        # $ echo -e foobar\n | git hash-object --stdin
+
+        # To get expected sha1 value
+        # $ echo foobar\n | git hash-object --stdin
 
         expected = 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
         self.assertEqual(tools.hash_data(''), expected)
@@ -113,7 +114,7 @@ class TestSupportingTools(TestCase):
         self.assertEqual(len(aliases), 2)
 
     def test_parse_book_element(self):
-        """parse_book_element should parse XML data into dict of appropriate values"""
+        """extract_book_data should extract data from XML into dict of appropriate values"""
         book_element_str = """
         <book id="123">
             <title>The Title</title>
@@ -125,7 +126,7 @@ class TestSupportingTools(TestCase):
         </book>
         """
         book_element = etree.fromstring(book_element_str)
-        data = tools.parse_book_element(book_element)
+        data = tools.extract_book_data(book_element)
         self.assertEqual(data['publisher_id'], '123')
         self.assertEqual(data['title'], 'The Title')
         self.assertEqual(data['description'], 'The desc')
@@ -158,7 +159,7 @@ class TestProcessingConflicts(TestCase):
         self.assertEqual(conflicts[0].value, 'THAT')
 
     def test_get_alias_conflicts_ignores_itself(self):
-        """get_alias_conflicts should return an empty list if no new conflicts in incoming data"""
+        """get_alias_conflicts should return empty list if incoming data has no conflicts"""
         new_book = Book.objects.get(title='The Title')
         incoming_aliases = [
             {'scheme': 'THIS', 'value': 'THAT'},
