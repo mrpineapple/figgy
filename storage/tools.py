@@ -24,22 +24,30 @@ def process_book_element(book_element, filename, sha1):
         prev_filename = update_file.filename
         created_str = update_file.created_time.strftime('%c')
         return '{0} processed on {1} contained same data'.format(prev_filename, created_str)
+
     incoming = extract_book_data(book_element)
-
-    found = Alias.objects.filter(scheme='PUB_ID', value=incoming['publisher_id'])
-    num_found = found.count()
-
-    book = found[0].book if num_found == 1 else Book()
-    book = populate_and_save(book, incoming)
-
-    conflicted_aliases = get_alias_conflicts(book)
-    num_conflicts = create_conflicts(book, conflicted_aliases)
+    book, num_conflicts = store_book_with_conflicts(incoming)
 
     msg = ''
     if num_conflicts:
         msg = 'created with {0} conflicts'.format(num_conflicts)
     UpdateFile.objects.create(filename=filename, sha1=sha1)
     return msg
+
+
+def store_book_with_conflicts(incoming):
+    """Given a dict of incoming data, persist a Book, its Aliases, and and any Conflicts
+
+    Since this takes an incoming dictionary, it could work just fine with the results of
+    a form's cleaned_data output with similar structure..
+    """
+    found = Alias.objects.filter(scheme='PUB_ID', value=incoming['publisher_id'])
+    num_found = found.count()
+    book = found[0].book if num_found == 1 else Book()
+    book = populate_and_save(book, incoming)
+    conflicted_aliases = get_alias_conflicts(book)
+    num_conflicts = create_conflicts(book, conflicted_aliases)
+    return book, num_conflicts
 
 
 def create_conflicts(book, dupe_aliases):
@@ -61,6 +69,26 @@ def get_alias_conflicts(book):
     flattened_conflicts = [item for found_set in conflicts for item in found_set]
     return flattened_conflicts
 
+
+def populate_and_save(book, incoming):
+    """Populate book object with values from incoming dict and save the Book/Aliases"""
+
+    # NOTE: SQLite does not honor max_length of CharField ... I'm assuming we'd use a different
+    # database in production, so I'm ignoring issues related to CharField overflow. Perhaps we
+    # could override the various model save() methods to call full_clean() and have it throw
+    # a DatabaseError (instead of ValidationError).
+
+    book.title = incoming['title']
+    book.description = incoming['description']
+    book.save()
+    for alias in incoming['aliases']:
+        book.aliases.get_or_create(scheme=alias['scheme'], value=alias['value'])
+    return book
+
+
+# --------------------------------------------------------------------------------
+# methods specific to process_book_element
+# --------------------------------------------------------------------------------
 
 def extract_book_data(book_element):
     """Return a dict of the data extracted from provided element
@@ -84,22 +112,6 @@ def extract_book_data(book_element):
         'title': title,
         'description': description,
         'aliases': aliases}
-    
-
-def populate_and_save(book, incoming):
-    """Populate book object with values from incoming dict and save the Book/Aliases"""
-
-    # NOTE: SQLite does not honor max_length of CharField ... I'm assuming we'd use a different
-    # database in production, so I'm ignoring issues related to CharField overflow. Perhaps we
-    # could override the various model save() methods to call full_clean() and have it throw
-    # a DatabaseError (instead of ValidationError).
-
-    book.title = incoming['title']
-    book.description = incoming['description']
-    book.save()
-    for alias in incoming['aliases']:
-        book.aliases.get_or_create(scheme=alias['scheme'], value=alias['value'])
-    return book
 
 
 def hash_data(contents):
