@@ -21,7 +21,7 @@ class Command(BaseCommand):
             sys.exit(1)
 
         if len(args) != 1:
-            print('Args: {0}\n    {1}'.format(Command.args, Command.help))
+            print('Args: {args}\n    {help}'.format(args=Command.args, help=Command.help))
             sys.exit(1)
 
         try:

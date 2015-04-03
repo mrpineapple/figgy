@@ -34,7 +34,7 @@ class Book(BaseModel):
         help_text='Very short description of this book.')
 
     def __unicode__(self):
-        return u'Book "{0}"'.format(self.title)
+        return u'Book "{}"'.format(self.title)
 
     class Meta:
         ordering = ['title']
@@ -61,7 +61,10 @@ class Alias(BaseModel):
         unique_together = ('book', 'scheme', 'value')
 
     def __unicode__(self):
-        return u'"{0}": {1}/{2}'.format(self.book.title, self.scheme, self.value)
+        return u'"{title}": {scheme} / {value}'.format(
+            title=self.book.title,
+            scheme=self.scheme,
+            value=self.value)
 
 
 class Conflict(BaseModel):
@@ -82,5 +85,7 @@ class Conflict(BaseModel):
         unique_together = ('book', 'alias')
 
     def __unicode__(self):
-        return u'"{0}": {1} / {2}'.format(
-            self.book.title, self.alias.scheme, self.alias.value)
+        return u'"{title}": {scheme} / {value}'.format(
+            title=self.book.title,
+            scheme=self.alias.scheme,
+            value=self.alias.value)

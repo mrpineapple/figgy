@@ -115,7 +115,7 @@ class TestProcessBookElement(TestCase):
         self.assertEqual(Alias.objects.count(), 0)
 
     def test_storage_tools_populate_and_save_fails_on_alias_overflow(self):
-        """populate_and_save should fail when alias fields overflow"""
+        """populate_and_save should not store aliases OR book when alias fields overflow"""
         book = Book()
         incoming = {
             'publisher_id': '123',

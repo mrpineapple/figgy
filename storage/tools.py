@@ -65,6 +65,8 @@ def get_alias_conflicts(book):
 def populate_and_save(book, incoming):
     """Populate book object with values from incoming dict and save the Book/Aliases"""
 
+    # Save book AND aliases as one transaction; an error in alias
+    # creation would leave a book without complete alias data.
     with transaction.atomic():
         book.title = incoming['title']
         book.description = incoming['description']
