@@ -37,5 +37,4 @@ class Command(BaseCommand):
 
         call_command('syncdb', interactive=False)
 
-        admin = User.objects.create_superuser(username, email, username)
-        admin.save()
+        User.objects.create_superuser(username, email, username)

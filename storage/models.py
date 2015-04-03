@@ -47,6 +47,9 @@ class Alias(BaseModel):
         max_length=40,
         help_text='The scheme of identifier')
 
+    class Meta:
+        unique_together = ('book', 'scheme', 'value')
+
     def __unicode__(self):
         return u'"{0}": {1}/{2}'.format(self.book.title, self.scheme, self.value)
 
@@ -64,6 +67,9 @@ class Conflict(BaseModel):
         Alias, related_name='conflicted_aliases')
     description = models.CharField(
         max_length=40, null=False, blank=False)
+
+    class Meta:
+        unique_together = ('book', 'conflicted_alias')
 
     def __unicode__(self):
         return u'"{0}": {1} / {2}'.format(

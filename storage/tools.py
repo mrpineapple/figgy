@@ -24,18 +24,16 @@ def process_book_element(book_element, filename, sha1):
         prev_filename = update_file.filename
         created_str = update_file.created_time.strftime('%c')
         return '{0} processed on {1} contained same data'.format(prev_filename, created_str)
-
     incoming = extract_book_data(book_element)
-    found = Alias.objects.filter(value=incoming['publisher_id'])
-    num_found = len(found)
 
-    book = found[0].book if num_found == 1 else Book.objects.create()
-    book, pub_id_alias = populate_book_attrs(book, incoming)
-    book.save()
+    found = Alias.objects.filter(scheme='PUB_ID', value=incoming['publisher_id'])
+    num_found = found.count()
 
-    conflicted_aliases = get_alias_conflicts(book, incoming['aliases'])
-    conflicted_aliases = conflicted_aliases + list(found) if num_found > 1 else conflicted_aliases
-    num_conflicts = create_conflicts(book, set(conflicted_aliases))
+    book = found[0].book if num_found == 1 else Book()
+    book = populate_and_save(book, incoming)
+
+    conflicted_aliases = get_alias_conflicts(book)
+    num_conflicts = create_conflicts(book, conflicted_aliases)
 
     msg = ''
     if num_conflicts:
@@ -44,25 +42,22 @@ def process_book_element(book_element, filename, sha1):
     return msg
 
 
-def create_conflicts(book, alias_set):
-    """Create a Conflict object for each alias duplicate; return number created"""
-    created = 0
-    for alias in alias_set:
+def create_conflicts(book, dupe_aliases):
+    """Create a Conflict object for each alias duplicate; return count of newly created Conflicts"""
+    num_created = 0
+    for alias in dupe_aliases:
         conflict, created = Conflict.objects.get_or_create(book=book, conflicted_alias=alias)
-        conflict.description = '[Auto] created on import'
-        conflict.save()
-        created += 1
-    return created
+        num_created = num_created + 1 if created else num_created
+    return num_created
 
 
-def get_alias_conflicts(book, incoming_aliases):
-    """Return a list of Alias records match the alias data provided by incoming book"""
+def get_alias_conflicts(book):
+    """Return a list of Aliases on other books that match the aliases on newly created Book"""
     conflicts = []
-    for incoming_alias in incoming_aliases:
-        scheme = incoming_alias['scheme']
-        value = incoming_alias['value']
-        conflicts.append(Alias.objects.filter(scheme=scheme, value=value).exclude(book=book))
-    # Appending results of `filter` to list results in list of lists, flatten this out
+    for a in book.aliases.all():
+        conflicts.append(Alias.objects.filter(scheme=a.scheme, value=a.value).exclude(book=book))
+
+    # The call `conflicts.append(Alias.obj...` results in a list of QuerySets; flatten those out.
     flattened_conflicts = [item for found_set in conflicts for item in found_set]
     return flattened_conflicts
 
@@ -70,13 +65,17 @@ def get_alias_conflicts(book, incoming_aliases):
 def extract_book_data(book_element):
     """Return a dict of the data extracted from provided element
 
-    Note that the 'aliases' key will return a dict of two keys: 'scheme' and 'value'
+    Note that the publisher id is available as a key in the dict and also stored as an alias with
+    a scheme of PUB_ID.
+
+    The 'aliases' key will return a list of dicts with two keys: 'scheme' and 'value'
     """
     publisher_id = book_element.get('id')
-    title = book_element.findtext('title')    
+    title = book_element.findtext('title')
     description = book_element.findtext('description')
 
-    aliases = []
+    # Translate the publisher id into an alias, then add the other aliases
+    aliases = [{'scheme': 'PUB_ID', 'value': publisher_id}]
     for alias in book_element.xpath('aliases/alias'):
         aliases.append({'scheme': alias.get('scheme'), 'value': alias.get('value')})
 
@@ -87,19 +86,20 @@ def extract_book_data(book_element):
         'aliases': aliases}
     
 
-def populate_book_attrs(book, incoming):
-    """Populate book object with values from incoming dict, including an alias for publisher id
+def populate_and_save(book, incoming):
+    """Populate book object with values from incoming dict and save the Book/Aliases"""
 
-    Note that we treat the incoming book id as an alias of scheme PUB_ID.
-    """
+    # NOTE: SQLite does not honor max_length of CharField ... I'm assuming we'd use a different
+    # database in production, so I'm ignoring issues related to CharField overflow. Perhaps we
+    # could override the various model save() methods to call full_clean() and have it throw
+    # a DatabaseError (instead of ValidationError).
+
     book.title = incoming['title']
     book.description = incoming['description']
-
+    book.save()
     for alias in incoming['aliases']:
         book.aliases.get_or_create(scheme=alias['scheme'], value=alias['value'])
-
-    alias, created = book.aliases.get_or_create(scheme='PUB_ID', value=incoming['publisher_id'])
-    return book, alias
+    return book
 
 
 def hash_data(contents):

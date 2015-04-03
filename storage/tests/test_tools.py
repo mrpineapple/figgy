@@ -7,8 +7,8 @@ from lxml import etree
 
 from django.test import TestCase
 
+from storage import tools
 from storage.models import Book, Alias, Conflict, UpdateFile
-import storage.tools as tools
 
 
 class TestProcessBookElement(TestCase):
@@ -38,7 +38,7 @@ class TestProcessBookElement(TestCase):
         self.assertEqual(Alias.objects.get(scheme='ISBN-13').value, '0000000000123')
         self.assertEqual(Alias.objects.get(scheme='PUB_ID').value, '12345')
 
-    def test_storage_tools_reprocess_same_file(self):
+    def test_storage_tools_do_not_reprocess_same_file(self):
         """process_book_element should not reprocess an identical file"""
         xml = etree.fromstring(self.xml_str)
         tools.process_book_element(xml, 'filename', self.hash)
@@ -77,7 +77,7 @@ class TestProcessBookElement(TestCase):
 
 class TestSupportingTools(TestCase):
 
-    def test_hash_file(self):
+    def test_storage_tools_hash_file(self):
         """hash_file should return a git compatible SHA1"""
 
         # To get expected sha1 value
@@ -89,31 +89,30 @@ class TestSupportingTools(TestCase):
         expected = '323fae03f4606ea9991df8befbb2fca795e648fa'
         self.assertEqual(tools.hash_data('foobar\n'), expected)
 
-    def test_populate_book_attrs(self):
-        """populate_book_attrs should populate Book attrs with incoming and return pub_id alias"""
-        book = Book.objects.create()
-        aliases = {'aliases': [
-            {'scheme': 'PUB_ID', 'value': '123'},
-            {'scheme': 'FOO', 'value': 'BAR'}
-        ]}
+    def test_storage_tools_populate_and_save(self):
+        """populate_and_save should populate Book/Aliases with incoming data"""
+        book = Book()
         incoming = {
             'publisher_id': '123',
             'title': 'The Title',
             'description': 'Exciting new book',
-            'aliases': aliases
+            'aliases': [
+                {'scheme': 'PUB_ID', 'value': '123'},
+                {'scheme': 'FOO', 'value': 'BAR'},
+                {'scheme': 'THIS', 'value': 'THAT'}
+            ]
         }
 
-        incoming.update(aliases)
-        book, pub_id_alias = tools.populate_book_attrs(book, incoming)
+        book = tools.populate_and_save(book, incoming)
+        self.assertTrue(isinstance(book.id, int))
         self.assertEqual(book.title, incoming['title'])
         self.assertEqual(book.description, incoming['description'])
-        self.assertEqual(pub_id_alias.scheme, 'PUB_ID')
-        self.assertEqual(pub_id_alias.value, '123')
-        book.save()
-        aliases = Alias.objects.filter(book=book)
-        self.assertEqual(len(aliases), 2)
+        self.assertEqual(Alias.objects.count(), 3)
+        self.assertEqual(Alias.objects.get(scheme='PUB_ID').value, '123')
+        self.assertEqual(Alias.objects.get(scheme='FOO').value, 'BAR')
+        self.assertEqual(Alias.objects.get(scheme='THIS').value, 'THAT')
 
-    def test_parse_book_element(self):
+    def test_storage_tools_extract_book_data(self):
         """extract_book_data should extract data from XML into dict of appropriate values"""
         book_element_str = """
         <book id="123">
@@ -131,6 +130,7 @@ class TestSupportingTools(TestCase):
         self.assertEqual(data['title'], 'The Title')
         self.assertEqual(data['description'], 'The desc')
         self.assertEqual(data['aliases'], [
+            {'scheme': 'PUB_ID', 'value': '123'},
             {'scheme': 'THIS', 'value': 'THAT'},
             {'scheme': 'FOO', 'value': 'BAR'},
         ])
@@ -143,26 +143,18 @@ class TestProcessingConflicts(TestCase):
         existing_book.aliases.create(scheme='PUB_ID', value='123')
         existing_book.aliases.create(scheme='THIS', value='THAT')
         existing_book.aliases.create(scheme='FOO', value='BAR')
-        existing_book.save()
         self.existing_book = existing_book
 
-    def test_get_alias_conflicts_one_existing_alias(self):
+    def test_storage_tools_get_alias_conflicts_one_existing_alias(self):
         """get_alias_conflicts should return a list of Alias conflict with book.aliases"""
-
-        new_book = Book.objects.create(title='Ninjas are For Movies')
-        incoming_aliases = [
-            {'scheme': 'THIS', 'value': 'THAT'},
-        ]
-        conflicts = tools.get_alias_conflicts(new_book, incoming_aliases)
+        new_book = Book.objects.create(title='Ninjas are for Movies')
+        new_book.aliases.create(scheme='THIS', value='THAT')
+        conflicts = tools.get_alias_conflicts(new_book)
         self.assertEqual(len(conflicts), 1)
         self.assertEqual(conflicts[0].scheme, 'THIS')
         self.assertEqual(conflicts[0].value, 'THAT')
 
-    def test_get_alias_conflicts_ignores_itself(self):
+    def test_storage_tools_get_alias_conflicts_ignores_itself(self):
         """get_alias_conflicts should return empty list if incoming data has no conflicts"""
-        new_book = Book.objects.get(title='The Title')
-        incoming_aliases = [
-            {'scheme': 'THIS', 'value': 'THAT'},
-        ]
-        conflicts = tools.get_alias_conflicts(new_book, incoming_aliases)
+        conflicts = tools.get_alias_conflicts(self.existing_book)
         self.assertEqual(conflicts, [])

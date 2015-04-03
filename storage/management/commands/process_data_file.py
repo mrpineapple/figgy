@@ -26,5 +26,5 @@ class Command(BaseCommand):
                 book_node = etree.fromstring(contents)
                 msg = tools.process_book_element(book_node, filename, sha1)
                 if msg:
-                    print '!!! {0}.'.format(msg)
+                    print '... {0}.'.format(msg)
         print

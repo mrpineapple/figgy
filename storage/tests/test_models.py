@@ -9,7 +9,7 @@ from storage import models, tools
 
 class TestModels(TestCase):
     def setUp(self):
-        self.book = models.Book.objects.create(title='The Title', pk=42)
+        self.book = models.Book.objects.create(title='The Title')
 
     def test_book_has_unicode_method(self):
         """Book should have a __unicode__ method."""
@@ -25,7 +25,7 @@ class TestModels(TestCase):
 
 class TestAlias(TestCase):
     def setUp(self):
-        self.book = models.Book.objects.create(title=u'El Título', pk=42)
+        self.book = models.Book.objects.create(title=u'El Título')
         self.alias = models.Alias.objects.create(book_id=self.book.id, scheme='Foobar', value='42')
 
     def test_alias_has_unicode_method(self):
