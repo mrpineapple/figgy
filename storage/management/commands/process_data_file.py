@@ -23,8 +23,12 @@ class Command(BaseCommand):
                 sha1 = tools.hash_data(contents)
 
                 print 'Importing {0} into database.'.format(filename)
-                book_node = etree.fromstring(contents)
-                msg = tools.process_book_element(book_node, filename, sha1)
-                if msg:
-                    print '... {0}.'.format(msg)
+                try:
+                    book_node = etree.fromstring(contents)
+                    conflicts = tools.process_book_element(book_node, filename, sha1)
+                    if conflicts:
+                        s = 's' if conflicts > 1 else ''
+                        print '... created with {num} conflict{s}.'.format(num=conflicts, s=s)
+                except etree.XMLSyntaxError:
+                    print('!!! Bad XML file, skipping.')
         print

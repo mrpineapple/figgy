@@ -27,19 +27,15 @@ def process_book_element(book_element, filename, sha1):
 
     incoming = extract_book_data(book_element)
     book, num_conflicts = store_book_with_conflicts(incoming)
-
-    msg = ''
-    if num_conflicts:
-        msg = 'created with {0} conflicts'.format(num_conflicts)
     UpdateFile.objects.create(filename=filename, sha1=sha1)
-    return msg
+    return num_conflicts
 
 
 def store_book_with_conflicts(incoming):
     """Given a dict of incoming data, persist a Book, its Aliases, and and any Conflicts
 
     Since this takes an incoming dictionary, it could work just fine with the results of
-    a form's cleaned_data output with similar structure..
+    a form's cleaned_data output with similar structure.
     """
     found = Alias.objects.filter(scheme='PUB_ID', value=incoming['publisher_id'])
     num_found = found.count()

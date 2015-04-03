@@ -1,0 +1,9 @@
+<book id="12345ABC">
+    <!-- note that this id conflicts with other values -->
+    <title>this is the third book, 2nd edition</title>
+    <description>A short description about the third book. Additional Description about the third book.</description>
+    <aliases>
+        <alias scheme="ISBN-10" value="1000000003"/>
+        <alias scheme="ISBN-13" value="1000000000003"
+    </aliases>
+</book>
