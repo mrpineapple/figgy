@@ -4,10 +4,10 @@
 
 from django.test import TestCase
 
-from storage import models, tools
+from storage import models
 
 
-class TestModels(TestCase):
+class TestBook(TestCase):
     def setUp(self):
         self.book = models.Book.objects.create(title='The Title')
 

@@ -3,8 +3,10 @@
 # Created by David Rideout <drideout@safaribooksonline.com> on 2/7/14 5:01 PM
 # Copyright (c) 2013 Safari Books Online, LLC. All rights reserved.
 
+
 from lxml import etree
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from storage import tools
@@ -16,6 +18,7 @@ class TestProcessBookElement(TestCase):
         self.xml_str = u"""
         <book id="12345">
             <title>El Título</title>
+            <description>This and that</description>
             <aliases>
                 <alias scheme="ISBN-10" value="0158757819"/>
                 <alias scheme="ISBN-13" value="0000000000123"/>
@@ -32,6 +35,7 @@ class TestProcessBookElement(TestCase):
         book = Book.objects.get(title=u'El Título')
 
         self.assertEqual(book.title, u'El Título')
+        self.assertEqual(book.description, 'This and that')
         self.assertEqual(book.aliases.count(), 3)
         self.assertEqual(Alias.objects.get(scheme='ISBN-10').value, '0158757819')
         self.assertEqual(Alias.objects.get(scheme='ISBN-13').value, '0000000000123')
@@ -51,6 +55,7 @@ class TestProcessBookElement(TestCase):
         xml_update_str = u"""
         <book id="789">
             <title>El Título, 2e</title>
+            <description>This and that</description>
             <aliases>
                 <alias scheme="ISBN-10" value="0158757819"/>
                 <alias scheme="ISBN-13" value="0000000000123"/>
@@ -92,28 +97,80 @@ class TestProcessBookElement(TestCase):
         self.assertEqual(Alias.objects.get(scheme='FOO').value, 'BAR')
         self.assertEqual(Alias.objects.get(scheme='THIS').value, 'THAT')
 
+    def test_storage_tools_populate_and_save_fails_on_book_overflow(self):
+        """populate_and_save should fail when book fields overflow"""
+        book = Book()
+        incoming = {
+            'publisher_id': '123',
+            'title': 'The Title' * 40,
+            'description': 'Exciting new book',
+            'aliases': [
+                {'scheme': 'PUB_ID', 'value': '123'},
+                {'scheme': 'FOO', 'value': 'X'},
+            ]
+        }
+        with self.assertRaises(ValidationError):
+            tools.populate_and_save(book, incoming)
+        self.assertEqual(Book.objects.count(), 0)
+        self.assertEqual(Alias.objects.count(), 0)
+
+    def test_storage_tools_populate_and_save_fails_on_alias_overflow(self):
+        """populate_and_save should fail when alias fields overflow"""
+        book = Book()
+        incoming = {
+            'publisher_id': '123',
+            'title': 'The Title',
+            'description': 'Exciting new book',
+            'aliases': [
+                {'scheme': 'PUB_ID', 'value': '123'},
+                {'scheme': 'FOO', 'value': 'X' * 1000},
+            ]
+        }
+        with self.assertRaises(ValidationError):
+            tools.populate_and_save(book, incoming)
+        self.assertEqual(Book.objects.count(), 0)
+        self.assertEqual(Alias.objects.count(), 0)
+
     def test_storage_tools_extract_book_data(self):
         """extract_book_data should extract data from XML into dict of appropriate values"""
-        book_element_str = """
-        <book id="123">
-            <title>The Title</title>
-            <description>The desc</description>
+        book_element = etree.fromstring(self.xml_str)
+        data = tools.extract_book_data(book_element)
+        self.assertEqual(data['publisher_id'], '12345')
+        self.assertEqual(data['title'], u'El Título')
+        self.assertEqual(data['description'], 'This and that')
+        self.assertEqual(data['aliases'], [
+            {'scheme': 'PUB_ID', 'value': '12345'},
+            {'scheme': 'ISBN-10', 'value': '0158757819'},
+            {'scheme': 'ISBN-13', 'value': '0000000000123'},
+        ])
+
+    def test_storage_tools_extract_book_data_with_missing_title(self):
+        """extract_book_data should throw error if missing title data"""
+        xml_bad_str = """<book id="12345">
+            <description>This and that</description>
             <aliases>
-                <alias scheme="THIS" value="THAT"/>
-                <alias scheme="FOO" value="BAR"/>
+                <alias scheme="ISBN-10" value="0158757819"/>
+                <alias scheme="ISBN-13" value="0000000000123"/>
             </aliases>
         </book>
         """
-        book_element = etree.fromstring(book_element_str)
-        data = tools.extract_book_data(book_element)
-        self.assertEqual(data['publisher_id'], '123')
-        self.assertEqual(data['title'], 'The Title')
-        self.assertEqual(data['description'], 'The desc')
-        self.assertEqual(data['aliases'], [
-            {'scheme': 'PUB_ID', 'value': '123'},
-            {'scheme': 'THIS', 'value': 'THAT'},
-            {'scheme': 'FOO', 'value': 'BAR'},
-        ])
+        book_element = etree.fromstring(xml_bad_str)
+        with self.assertRaises(ValueError):
+            tools.extract_book_data(book_element)
+
+    def test_storage_tools_extract_book_data_with_missing_id(self):
+        """extract_book_data should throw error if missing book id (or if id is whitespace"""
+        xml_bad_str = """<book id=" ">
+            <title>This and that</title>
+            <aliases>
+                <alias scheme="ISBN-10" value="0158757819"/>
+                <alias scheme="ISBN-13" value="0000000000123"/>
+            </aliases>
+        </book>
+        """
+        book_element = etree.fromstring(xml_bad_str)
+        with self.assertRaises(ValueError):
+            tools.extract_book_data(book_element)
 
 
 class TestProcessingConflicts(TestCase):

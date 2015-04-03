@@ -10,6 +10,16 @@ class BaseModel(models.Model):
     last_modified_time = models.DateTimeField(
         'last-modified', auto_now=True, db_index=True)
 
+    def save(self, *args, **kwargs):
+
+        # SQLite does not honor CharField max_length; calling full_clean is one work-around to force
+        # the validation. However, this will raise a ValidationError, where as I believe most other
+        # backends will properly raise a DatabaseError.
+        # This is a temporary fix until we figure out what's next. While it works okay for
+        # processing XML files, it may not be appropriate in other cases.
+        self.full_clean()
+        super(BaseModel, self).save(*args, **kwargs)
+
     class Meta:
         abstract = True
 
@@ -66,7 +76,7 @@ class Conflict(BaseModel):
     conflicted_alias = models.ForeignKey(
         Alias, related_name='conflicted_aliases')
     description = models.CharField(
-        max_length=40, null=False, blank=False)
+        max_length=40, null=True, blank=True)
 
     class Meta:
         unique_together = ('book', 'conflicted_alias')

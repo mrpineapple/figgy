@@ -2,6 +2,7 @@
 
 # Created by David Rideout <drideout@safaribooksonline.com> on 2/7/14 4:58 PM
 # Copyright (c) 2013 Safari Books Online, LLC. All rights reserved.
+from django.db import transaction
 
 from storage.models import Alias, Book, Conflict
 
@@ -64,17 +65,13 @@ def get_alias_conflicts(book):
 def populate_and_save(book, incoming):
     """Populate book object with values from incoming dict and save the Book/Aliases"""
 
-    # NOTE: SQLite does not honor max_length of CharField ... I'm assuming we'd use a different
-    # database in production, so I'm ignoring issues related to CharField overflow. Perhaps we
-    # could override the various model save() methods to call full_clean() and have it throw
-    # a DatabaseError (instead of ValidationError).
-
-    book.title = incoming['title']
-    book.description = incoming['description']
-    book.save()
-    for alias in incoming['aliases']:
-        book.aliases.get_or_create(scheme=alias['scheme'], value=alias['value'])
-    return book
+    with transaction.atomic():
+        book.title = incoming['title']
+        book.description = incoming['description']
+        book.save()
+        for alias in incoming['aliases']:
+            book.aliases.get_or_create(scheme=alias['scheme'], value=alias['value'])
+        return book
 
 
 def extract_book_data(book_element):
@@ -85,9 +82,14 @@ def extract_book_data(book_element):
 
     The 'aliases' key will return a list of dicts with two keys: 'scheme' and 'value'
     """
-    publisher_id = book_element.get('id')
-    title = book_element.findtext('title')
-    description = book_element.findtext('description')
+    title = book_element.findtext('title', default='').strip()
+    publisher_id = book_element.get('id', default='').strip()
+    description = book_element.findtext('description', default='').strip()
+
+    if not title:
+        raise ValueError('No data in title element')
+    if not publisher_id:
+        raise ValueError('No data for publisher id')
 
     # Translate the publisher id into an alias, then add the other aliases
     aliases = [{'scheme': 'PUB_ID', 'value': publisher_id}]
