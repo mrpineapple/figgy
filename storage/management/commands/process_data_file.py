@@ -6,6 +6,7 @@
 from lxml import etree
 
 from django.core.management.base import BaseCommand
+from django.template.defaultfilters import pluralize
 
 import storage.tools as tools
 
@@ -15,20 +16,23 @@ class Command(BaseCommand):
     help = 'Process an xml file '
 
     def handle(self, *args, **options):
-        print
-        print 'Processing {0} titles\n'.format(len(args))
+        errors = []
+        print('Processing {} titles\n'.format(len(args)))
         for filename in args:
             with open(filename, 'rb') as fh:
-                contents = fh.read()
-                sha1 = tools.hash_data(contents)
-
-                print 'Importing {0} into database.'.format(filename)
+                print('Importing {} into database.'.format(filename))
                 try:
-                    book_node = etree.fromstring(contents)
-                    conflicts = tools.process_book_element(book_node, filename, sha1)
+                    book_node = etree.parse(fh).getroot()
+                    book, update_type, conflicts = tools.process_book_element(book_node)
+                    print('... {action} "{title}"'.format(action=update_type, title=book.title))
                     if conflicts:
-                        s = 's' if conflicts > 1 else ''
-                        print '... created with {num} conflict{s}.'.format(num=conflicts, s=s)
-                except etree.XMLSyntaxError:
-                    print('!!! Bad XML file, skipping.')
-        print
+                        s = pluralize(conflicts)
+                        print('... with {num} conflict{s}.'.format(num=conflicts, s=s))
+                except Exception as err:
+                    # Use broad exception, we don't want to stop the batch
+                    print('!!! Error, skipping {}'.format(filename))
+                    errors.append({'filename': filename, 'message': err.message})
+
+        print('\nThe following files were skipped due to errors')
+        for err in errors:
+            print(u'    {file} : {msg}'.format(file=err['filename'], msg=err['message']))

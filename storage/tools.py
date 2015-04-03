@@ -3,47 +3,42 @@
 # Created by David Rideout <drideout@safaribooksonline.com> on 2/7/14 4:58 PM
 # Copyright (c) 2013 Safari Books Online, LLC. All rights reserved.
 
-import hashlib
-
-from storage.models import Alias, Book, Conflict, UpdateFile
+from storage.models import Alias, Book, Conflict
 
 
-def process_book_element(book_element, filename, sha1):
+def process_book_element(book_element):
     """Process a book element into the database.
 
-    We store the publisher id as another alias. If we have any alias conflicts (including pub_id)
-    we create a Conflict object so we can research and fix the issue. Possible resolutions can
-    include correcting the data or merging aliases/books to point to the canonical book.
-
-    We store a hash of each file we process. We exit early if we have seen this file before.
+    Simple wrapper method that takes XML as input.
     """
-
-    updated_already = UpdateFile.objects.filter(sha1=sha1)
-    if updated_already:
-        update_file = updated_already[0]
-        prev_filename = update_file.filename
-        created_str = update_file.created_time.strftime('%c')
-        return '{0} processed on {1} contained same data'.format(prev_filename, created_str)
-
     incoming = extract_book_data(book_element)
-    book, num_conflicts = store_book_with_conflicts(incoming)
-    UpdateFile.objects.create(filename=filename, sha1=sha1)
-    return num_conflicts
+    book, update_type, num_conflicts = store_book_with_conflicts(incoming)
+    return book, update_type, num_conflicts
 
 
 def store_book_with_conflicts(incoming):
     """Given a dict of incoming data, persist a Book, its Aliases, and and any Conflicts
+
+    We store the publisher id as another alias. If we have any alias conflicts (including pub_id)
+    we create a Conflict object so we can research and fix the issue. Possible resolutions can
+    include correcting the data or merging aliases/books to point to the canonical book.
 
     Since this takes an incoming dictionary, it could work just fine with the results of
     a form's cleaned_data output with similar structure.
     """
     found = Alias.objects.filter(scheme='PUB_ID', value=incoming['publisher_id'])
     num_found = found.count()
-    book = found[0].book if num_found == 1 else Book()
+    if num_found == 1:
+        book = found[0].book
+        update_type = 'Updated'
+    else:
+        book = Book()
+        update_type = 'Created'
+
     book = populate_and_save(book, incoming)
     conflicted_aliases = get_alias_conflicts(book)
     num_conflicts = create_conflicts(book, conflicted_aliases)
-    return book, num_conflicts
+    return book, update_type, num_conflicts
 
 
 def create_conflicts(book, dupe_aliases):
@@ -82,10 +77,6 @@ def populate_and_save(book, incoming):
     return book
 
 
-# --------------------------------------------------------------------------------
-# methods specific to process_book_element
-# --------------------------------------------------------------------------------
-
 def extract_book_data(book_element):
     """Return a dict of the data extracted from provided element
 
@@ -108,20 +99,3 @@ def extract_book_data(book_element):
         'title': title,
         'description': description,
         'aliases': aliases}
-
-
-def hash_data(contents):
-    """Return a git-compatible sha1 hash for data, usually contents of file
-
-    Using git-compatible hash since we may have the data files stored in git. Could be handy.
-    If we get out of sync with the git format reason it shouldn't kill us.
-
-    This is simple enough that it makes sense to implement here, rather than spawning a new process
-    to use the git binary.
-    """
-    data = contents
-    len_data = len(data)
-    sha1 = hashlib.sha1()
-    sha1.update('blob {0}\0'.format(len_data))
-    sha1.update(contents)
-    return sha1.hexdigest()

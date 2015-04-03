@@ -1,0 +1,9 @@
+<book id="1000000000001">
+    <version>2.0</version>
+    <aliases>
+        <alias scheme="ISBN-10" value="1000000001"/>
+        <alias scheme="ISBN-13" value="1000000000001"/>
+
+        <alias scheme="Proprietary" value="12345ABC"/>
+    </aliases>
+</book>

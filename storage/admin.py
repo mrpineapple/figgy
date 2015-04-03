@@ -16,7 +16,7 @@ class InlineConflictAdmin(admin.StackedInline):
 class BookAdmin(admin.ModelAdmin):
     inlines = [InlineConflictAdmin, InlineAliasAdmin]
 
-    list_display = ['id', 'title', 'list_aliases']
+    list_display = ['title', 'id', 'list_aliases']
 
     def list_aliases(self, obj):
         if obj:

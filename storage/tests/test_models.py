@@ -40,21 +40,3 @@ class TestAlias(TestCase):
         self.alias.value = u'12345'
         expected = u'"{0}": FØØ-12/12345'.format(self.book.title)
         self.assertEquals(expected, unicode(self.alias))
-
-
-class TestUpdateFile(TestCase):
-
-    def setUp(self):
-        sha1 = tools.hash_data('foobar')
-        self.update_file = models.UpdateFile.objects.create(filename='update-1.xml', sha1=sha1)
-
-    def test_alias_has_unicode_method(self):
-        """UpdateFile should have a __unicode__ method."""
-        expected = u'{0}'.format(self.update_file.filename)
-        self.assertEquals(expected, unicode(self.update_file))
-
-    def test_alias_unicode_handles_non_ascii(self):
-        """UpdateFile __unicode__ should handle non-ascii."""
-        self.update_file.filename = u'üpdate-1.xml'
-        expected = u'{0}'.format(self.update_file.filename)
-        self.assertEquals(expected, unicode(self.update_file))

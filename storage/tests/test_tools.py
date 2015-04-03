@@ -8,7 +8,7 @@ from lxml import etree
 from django.test import TestCase
 
 from storage import tools
-from storage.models import Book, Alias, Conflict, UpdateFile
+from storage.models import Book, Alias, Conflict
 
 
 class TestProcessBookElement(TestCase):
@@ -22,12 +22,11 @@ class TestProcessBookElement(TestCase):
             </aliases>
         </book>
         """
-        self.hash = 'A' * 40
 
     def test_storage_tools_process_book_element_db(self):
         """process_book_element should put the book in the database."""
         xml = etree.fromstring(self.xml_str)
-        tools.process_book_element(xml, 'filename', self.hash)
+        tools.process_book_element(xml)
 
         self.assertEqual(Book.objects.count(), 1)
         book = Book.objects.get(title=u'El Título')
@@ -41,13 +40,12 @@ class TestProcessBookElement(TestCase):
     def test_storage_tools_do_not_reprocess_same_file(self):
         """process_book_element should not reprocess an identical file"""
         xml = etree.fromstring(self.xml_str)
-        tools.process_book_element(xml, 'filename', self.hash)
+        tools.process_book_element(xml)
         self.assertEqual(Book.objects.count(), 1)
 
         book = Book.objects.get(title=u'El Título')
         self.assertEqual(book.aliases.count(), 3)
         self.assertEqual(Conflict.objects.count(), 0)
-        self.assertEqual(UpdateFile.objects.count(), 1)
 
         # process an update that will generate new book, aliases and conflicts
         xml_update_str = u"""
@@ -60,34 +58,16 @@ class TestProcessBookElement(TestCase):
         </book>
         """
         xml = etree.fromstring(xml_update_str)
-        bogus_hash = '2' * 40
-        tools.process_book_element(xml, 'filename2', bogus_hash)
+        tools.process_book_element(xml)
         self.assertEqual(Book.objects.count(), 2)
         self.assertEqual(Alias.objects.count(), 6)
         self.assertEqual(Conflict.objects.count(), 2)
-        self.assertEqual(UpdateFile.objects.count(), 2)
 
         # ... DO NOT process it again, even if we try
-        tools.process_book_element(xml, 'filename2', bogus_hash)
+        tools.process_book_element(xml)
         self.assertEqual(Book.objects.count(), 2)
         self.assertEqual(Alias.objects.count(), 6)
         self.assertEqual(Conflict.objects.count(), 2)
-        self.assertEqual(UpdateFile.objects.count(), 2)
-
-
-class TestSupportingTools(TestCase):
-
-    def test_storage_tools_hash_file(self):
-        """hash_file should return a git compatible SHA1"""
-
-        # To get expected sha1 value
-        # $ echo foobar\n | git hash-object --stdin
-
-        expected = 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
-        self.assertEqual(tools.hash_data(''), expected)
-
-        expected = '323fae03f4606ea9991df8befbb2fca795e648fa'
-        self.assertEqual(tools.hash_data('foobar\n'), expected)
 
     def test_storage_tools_populate_and_save(self):
         """populate_and_save should populate Book/Aliases with incoming data"""
