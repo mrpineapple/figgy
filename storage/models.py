@@ -72,15 +72,15 @@ class Conflict(BaseModel):
     and allows someone to manage conflicts (merge or correct and mark distinct).
     """
     book = models.ForeignKey(
-        Book, related_name='books')
-    conflicted_alias = models.ForeignKey(
+        Book, related_name='conflicted_books')
+    alias = models.ForeignKey(
         Alias, related_name='conflicted_aliases')
     description = models.CharField(
         max_length=40, null=True, blank=True)
 
     class Meta:
-        unique_together = ('book', 'conflicted_alias')
+        unique_together = ('book', 'alias')
 
     def __unicode__(self):
         return u'"{0}": {1} / {2}'.format(
-            self.book.title, self.conflicted_alias.scheme, self.conflicted_alias.value)
+            self.book.title, self.alias.scheme, self.alias.value)

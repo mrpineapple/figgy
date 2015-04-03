@@ -46,7 +46,7 @@ def create_conflicts(book, dupe_aliases):
     """Create a Conflict object for each alias duplicate; return count of newly created Conflicts"""
     num_created = 0
     for alias in dupe_aliases:
-        conflict, created = Conflict.objects.get_or_create(book=book, conflicted_alias=alias)
+        conflict, created = Conflict.objects.get_or_create(book=book, alias=alias)
         num_created = num_created + 1 if created else num_created
     return num_created
 
