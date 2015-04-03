@@ -1,42 +1,53 @@
 # Steve Smith's Code Submission
 
-I thought this was an excellent code test. Non-trivial with a nod toward the messiness of real-world development. (Wait? What? People didn't adhere to a standard?) 
+I thought this was an excellent code test. Non-trivial with a nod toward the messiness of real-world development. (Wait? What? A standard was ignored? Never.)
 
 I like that I was forced to think about some architectural things and had the freedom of a variety of solutions.
 
-Perhaps my solution is quite unlike the solution Safari Books Online chose, but I think my solution tackles the issues I thought significant in an appropriate way.
+Perhaps my solution is unlike the solution Safari Books Online chose, but I think it tackles the issues I thought significant in an appropriate way.
 
-## Key Concepts: Publisher Id & Conflicts
+I have yet to look at other pull requests; I wanted to look at this problem with fresh eyes. If we progress in the interview process I will review the other submissions and form some opinions on the relative strengths and weaknesses.
+
+## Key Concepts: Publisher Id and Conflicts
 
 The philosophy behind my solution is this: Conflicts happen. Store the conflicted data and provide another tool to correct and/or merge conflicted data. (I have not provided the merging tool; I would be happy to provide more work if that's helpful.)
 
-Another key idea is that we should not trust the publisher to give us primary key data for our database. Let's just store the publisher's id as another Alias.
+Another key idea is that we should not trust the publisher to give us primary key data for our database. Let's just store the publisher id as another Alias.
 
 ## The Task
 
-Let's get to the task at hand, shall we? Let's assume you've been through the Very First Time setup.
+Let's get to the task at hand. Let's assume you've been through the Very First Time setup.
 
 First, run the tests as originally documented:
 
     $ tox
 
-Second, reset your database to get new model changes. I did not provide migrations, because it seems
-this task seems to be a proof-of-concept situation:
+Second, reset your database to get new model changes. I did not provide migrations, because it seems this task seems to be a proof-of-concept situation:
 
     $ python manage.py reset_db <user@domain.com>
 
-This will delete the existing SQLite3 database and create the new database with the appropriate model changes. It will also create the super-user `user` with the provided email address and the password set to `user`.
+This will delete the existing SQLite database and create the new database with the appropriate model changes. It will also create the super-user `user` with the provided email address and the password set to `user`.
 
-Obviously, this method would NEVER be used on production (and will stop if your engine isn't SQLite3). But I find it useful to have a prompt-less database reset mechanism.
+Obviously, this method would NEVER be used on production (and will stop if your engine isn't SQLite). But I find it useful to have a prompt-less database reset mechanism.
 
 You should now be able to import the updates to the book data.
 
     $ python manage.py process_data_file data/initial/*.xml
     $ python manage.py process_data_file data/update/*.xml
 
-Feel free to re-run the update. We'll ignore any file that we've already processed. (We ignore duplicate updates based on the SHA1 hash of the file contents.)
+## Next Steps
 
-**The rest of this document is as it was.**
+Obviously, I have kicked most of the hard work down the road: We need a deconfliction tool. I envision a form that allows a user to examine a book's conflicts and either merge aliases/books or correct the data.
+
+I also envision a scheduled task that looks for additional conflicts in the database. I am assuming humans with keyboards could enter data as well, so we'll want to capture those issues. Lastly, the XML processor will currently not identify circular conflicts, but they would be found in the scheduled task.
+
+Conflicts could be extended to flag conflicts internal to the book itself. For example, we could create a conflict for two aliases on the same book, with different values. Or, if we want to store invalid schemes (I suspect we do), we could create a conflict for schemes that can but do not validate (such as an ISBN that fails its checksum).
+
+All in all, this task raised a lot of interesting questions and would prove a good starting point for more technical discussions. Thanks.
+
+----
+
+**The rest of this document is mostly as it was.**
 
 ## Setup
 
