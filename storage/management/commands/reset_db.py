@@ -30,7 +30,7 @@ class Command(BaseCommand):
             username = email.split('@')[0]
         except ValidationError:
             print('Invalid email address')
-            sys.exit(0)
+            sys.exit(1)
 
         db_name = settings.DATABASES['default']['NAME']
         os.remove(db_name)
