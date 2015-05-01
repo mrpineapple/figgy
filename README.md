@@ -22,7 +22,7 @@ First, run the tests as originally documented:
 
     $ tox
 
-Second, reset your database to get new model changes. I did not provide migrations, because it seems this task seems is a proof-of-concept situation:
+Second, reset your database to get new model changes. I did not provide migrations, because this seems to be a proof-of-concept task:
 
     $ python manage.py reset_db <user@domain.com>
 
