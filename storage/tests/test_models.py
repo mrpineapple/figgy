@@ -56,6 +56,6 @@ class TestAlias(TestCase):
 
     def test_book_save_method_raises_error_on_value_overflow(self):
         """Alias.save() should raise an error if value exceeds max length"""
-        self.alias.scheme = 'X' * 1000
+        self.alias.value = 'X' * 1000
         with self.assertRaises(ValidationError):
             self.alias.save()
